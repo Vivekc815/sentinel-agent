@@ -1,4 +1,5 @@
-from typing import TypedDict, Optional, List
+from typing import TypedDict, Optional, List, Annotated
+from langgraph.graph.message import add_messages
 
 class SentinelState(TypedDict):
     predictions: list
@@ -6,3 +7,4 @@ class SentinelState(TypedDict):
     diagnosis: str
     action_taken: str
     error: Optional[str]
+    messages: Annotated[list, add_messages]

@@ -1,13 +1,23 @@
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import SystemMessage
-from src.agent.tools import fetch_recent_predictions, calculate_drift_score, trigger_retraining
-from src.agent.nodes import llm
+from langgraph.graph import StateGraph, END
+from src.agent.nodes import monitor_node, diagnose_node, remediate_node
+from src.agent.state import SentinelState
 
 
-tools = [fetch_recent_predictions, calculate_drift_score, trigger_retraining]
-
-system_prompt = SystemMessage(content="You are Sentinel, an autonomous ML monitoring agent. Fetch recent predictions, calculate drift score, and trigger retraining if drift score is above 0.3.")
-
+def should_remediate(state:SentinelState) -> str:
+    if state["drift_score"]>0.3:
+        return "diagnose"
+    return END
 
 def build_graph():
-    return create_react_agent(llm, tools=tools, prompt=system_prompt)
+    graph = StateGraph(SentinelState)
+
+    graph.add_node("monitor", monitor_node)
+    graph.add_node("diagnose", diagnose_node)
+    graph.add_node("remediate", remediate_node)
+
+    graph.set_entry_point("monitor")
+    graph.add_conditional_edges("monitor", should_remediate)
+    graph.add_edge("diagnose", "remediate")
+    graph.add_edge("remediate", END)
+
+    return graph.compile()

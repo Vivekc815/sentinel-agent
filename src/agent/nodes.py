@@ -9,13 +9,20 @@ tools = [fetch_recent_predictions, calculate_drift_score, trigger_retraining]
 llm_with_tools = llm.bind_tools(tools)
 
 def monitor_node(state: SentinelState) -> SentinelState:
-    messages = [
-        SystemMessage(content= "You are Sentinel, an autonomous ML monitoring agent"),
-        HumanMessage(content="Check the pricing model for drift and take action if needed.")
-    ]
-    response = llm_with_tools.invoke(messages)
-    return {"diagnosis":response.content, "action_taken": "completed"}
+    predictions = fetch_recent_predictions.invoke({})
+    drift_score = calculate_drift_score.invoke({"predictions": predictions})
+    return{"predictions": predictions, "drift_score": drift_score}
 
+def diagnose_node(state: SentinelState) -> dict:
+    response = llm.invoke([
+        SystemMessage(content = "You are Sentinel. Analyze the drift score and explain why retraining is needed."),
+        HumanMessage(content= f"Drift score is {state['drift_score']}. Recent predictions :{state['predictions'][:5]}")
+    ])
+    return {"diagnosis" : response.content}
+
+def remediate_node(state: SentinelState) -> dict:
+    result = trigger_retraining.invoke({})
+    return {"action_taken" : result}
 
 
 
