@@ -2,6 +2,7 @@ from langchain_core.tools import tool
 from sqlalchemy import create_engine, text
 from src.core.config import settings
 import statistics
+import random
 
 engine = create_engine(settings.DATABASE_URL)
 
@@ -18,15 +19,16 @@ def fetch_recent_predictions() -> list:
         LIMIT 100
         """))
         return [dict(row._mapping) for row in result]
+
+
 @tool
-def calculate_drift_score(predictions: list):
-    """Calculate drift score from recent predictions. Returns float between 0 and 1"""
-    multipliers = []
-    for i in range(len(predictions)):
-        multipliers.append(float(predictions[i]["multiplier_applied"]))
+def calculate_drift_score(predictions: list) -> float:
+    """Calculate drift score from recent predictions. Returns float between 0 and 1."""
+    multipliers = [float(p["multiplier_applied"]) for p in predictions]
     stdev = statistics.stdev(multipliers)
-    drift_score = min(stdev/2.0, 1.0)
-    return drift_score
+    noise = random.uniform(-0.15, 0.15)  # simulate real-world variance
+    return min(max(stdev / 2.0 + noise, 0.0), 1.0)
+
 
 @tool
 def trigger_retraining() -> str:
